@@ -297,13 +297,21 @@ class BetaAlphaMonitor:
                        f"{key}d窗口) → β分析可能不适用")
                 diagnosis.append(msg)
 
-        # 4. 残差自相关高
+        # 4. 残差自相关高 — 需要区分窗口
+        #    短期窗口(20/60d): 残差自相关>0.3是正常的 (A股存在涨跌停+日内动量)
+        #    中期窗口(120/252d): 残差自相关>0.2才警告
         for key, r in self.results.items():
             if r.get("resid_autocorr") is not None:
                 ac = abs(r["resid_autocorr"])
-                if ac > 0.2:
+                w = int(key)
+                # 短期窗口: 放宽阈值到0.3
+                threshold = 0.3 if w <= 60 else 0.2
+                if ac > threshold:
                     msg = (f"WARN: 残差自相关过高(|ρ|={ac:.4f}, "
-                           f"{key}d窗口) → 模型遗漏因子")
+                           f"{key}d窗口, 阈值{threshold}) → 模型遗漏因子")
+                    # 短期窗口额外提示
+                    if w <= 60 and ac <= 0.5:
+                        msg += " (短期窗口常见, 可能为正常市场动量效应)"
                     diagnosis.append(msg)
 
         if not diagnosis:

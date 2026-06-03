@@ -250,17 +250,18 @@ class TestRegimeCheck:
         ds = DynamicGridSpread()
         assert ds.regime_check(0.15) == "normal"
         assert ds.regime_check(0.20) == "normal"
-        assert ds.regime_check(0.29999) == "normal"
+        assert ds.regime_check(0.30) == "normal"
+        assert ds.regime_check(0.34999) == "normal"
 
     def test_high_vol(self):
         ds = DynamicGridSpread()
-        assert ds.regime_check(0.30) == "high_vol"
-        assert ds.regime_check(0.40) == "high_vol"
-        assert ds.regime_check(0.49999) == "high_vol"
+        assert ds.regime_check(0.35) == "high_vol"
+        assert ds.regime_check(0.45) == "high_vol"
+        assert ds.regime_check(0.54999) == "high_vol"
 
     def test_crisis(self):
         ds = DynamicGridSpread()
-        assert ds.regime_check(0.50) == "crisis"
+        assert ds.regime_check(0.55) == "crisis"
         assert ds.regime_check(1.0) == "crisis"
         assert ds.regime_check(3.0) == "crisis"
 
@@ -287,8 +288,8 @@ class TestCLI:
         assert "Ask" in out
         assert "Spread" in out
         assert "Regime" in out
-        # Regime for 0.30 is "high_vol" (0.30 ≤ vol < 0.50)
-        assert "high_vol" in out
+        # Regime for 0.30 is "normal" (0.15 ≤ vol < 0.35)
+        assert "normal" in out
 
     def test_prices_flag(self):
         prices_str = [str(100 + i) for i in range(25)]
@@ -349,5 +350,5 @@ class TestUsageExample:
         assert math.isclose(spread, 0.0744, rel_tol=0.02), f"spread={spread}"
 
         regime = ds.regime_check(0.30)
-        # 0.30 falls in high_vol (0.30 ≤ vol < 0.50)
-        assert regime == "high_vol"
+        # 0.30 falls in normal (0.15 ≤ vol < 0.35)
+        assert regime == "normal"

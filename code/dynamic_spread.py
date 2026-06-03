@@ -211,11 +211,15 @@ class DynamicGridSpread:
     def regime_check(self, vol_annual: float) -> str:
         """Classify the market regime based on annualised volatility.
 
-        Thresholds:
+        Thresholds (calibrated for A-share market):
+            A-share typical vols: CSI300~18-22%, individual stocks~25-40%
             < 0.15  → low_vol   (tighten spreads)
-            0.15–0.30 → normal
-            0.30–0.50 → high_vol  (widen spreads)
-            ≥ 0.50  → crisis     (stop trading or max spread)
+            0.15–0.35 → normal   (A-share median ~20-25%)
+            0.35–0.55 → high_vol  (widen spreads, ~90th percentile)
+            ≥ 0.55  → crisis     (stop trading or max spread)
+
+        Note: Thresholds are wider than US equities because A-share individual
+        stocks have higher average volatility (no circuit breakers, retail dominance).
 
         Args:
             vol_annual: Annualised volatility (decimal).
@@ -231,9 +235,9 @@ class DynamicGridSpread:
 
         if vol_annual < 0.15:
             return "low_vol"
-        elif vol_annual < 0.30:
+        elif vol_annual < 0.35:
             return "normal"
-        elif vol_annual < 0.50:
+        elif vol_annual < 0.55:
             return "high_vol"
         else:
             return "crisis"
