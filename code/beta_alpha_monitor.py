@@ -93,9 +93,8 @@ class BetaAlphaMonitor:
 
         client = Quotes.factory(market="std")
 
-        # 个股
-        symbol = _prefixed(self.stock_code)
-        self.stock_df = client.bars(symbol=symbol, frequency=9,
+        # 个股 — mootdx std market 的 bars() 不需要市场前缀
+        self.stock_df = client.bars(symbol=self.stock_code, frequency=9,
                                     start=0, offset=offset)
 
         # 指数 (用 index_bars, 不需要前缀)

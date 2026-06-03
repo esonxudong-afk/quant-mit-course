@@ -322,3 +322,26 @@ def main(argv: List[str] = None) -> None:
 
 if __name__ == "__main__":
     main()
+
+# ===================== DESIGN NOTE =====================
+# 
+# This implementation uses a LINEAR simplification of the Avellaneda-Stoikov
+# optimal spread formula:
+#
+#   Original A-S:  δ* = γ·σ²·(T-t) + (2/γ)·ln(1 + γ/κ)
+#   Our simplified: δ  = σ_daily · k_risk · (1 + |q|/Q_max)
+#
+# Rationale:
+#   1. A-S is designed for HFT market making (minute-level). Our use case is
+#      daily-frequency grid trading. The quadratic σ² term produces unrealistically
+#      wide spreads for high-volatility days (>8% for σ=50%).
+#   2. The (2/γ)ln(1+γ/κ) term represents "base profit" covering adverse
+#      selection risk. In A-share markets with daily price limits (±10%), 
+#      the κ (order arrival decay) parameter has different meaning and is
+#      harder to calibrate. This is absorbed into k_risk.
+#   3. The linear form σ ∝ δ is more robust for lower-frequency data and
+#      easier to explain to traders.
+#
+# The inventory adjustment term (1 + |q|/Q_max) preserves the core A-S
+# intuition: wider spreads when inventory is imbalanced.
+# =========================================================
