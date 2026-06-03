@@ -263,14 +263,72 @@ class BetaAlphaMonitor:
     def diagnose(self):
         """基于多窗口结果生成诊断信息
 
+        诊断去噪策略:
+        - 每个诊断类型只输出最关键窗口的警告 (长窗口>短窗口)
+        - β不稳定: 只输出1条 (如果触发)
+        - α不显著: 只输出最长触发窗口 (252d优先)
+        - R²低: 只输出最长触发窗口
+        - 残差自相关: 只输出最严重窗口
+
         Returns
         -------
-        list[str]  诊断字符串列表
+        list[str]  诊断字符串列表 (最多5-6条, 去噪后)
         """
         diagnosis = []
-        warnings_list = []
 
-        # 辅助: 获取某窗口结果
+        def _get(key, field):
+            r = self.results.get(str(key), {})
+            return r.get(field)
+
+        # 1. β 不稳定性: 20d vs 252d (只输出1条)
+        b20 = _get(20, "beta")
+        b252 = _get(252, "beta")
+        if b20 is not None and b252 is not None:
+            diff = abs(b20 - b252)
+            if diff > 0.3:
+                diagnosis.append(
+                    f"WARN: β不稳定 "
+                    f"(β20d={b20:.4f}, β252d={b252:.4f}, Δ={diff:.4f})"
+                )
+
+        # 2. α不显著: 只报告最长窗口 (最可靠)
+        for w in sorted(self.lookback_windows, reverse=True):
+            pv = _get(w, "p_value")
+            if pv is not None and pv > 0.05:
+                diagnosis.append(f"WARN: α不显著 (p={pv:.4f}, {w}d窗口, 95%置信)")
+                break  # 只报告最长窗口
+
+        # 3. R² 低: 只报告最长窗口
+        for w in sorted(self.lookback_windows, reverse=True):
+            r2 = _get(w, "r_squared")
+            if r2 is not None and r2 < 0.1:
+                diagnosis.append(
+                    f"WARN: R²过低 (R²={r2:.4f}, {w}d窗口)"
+                    f" → 该股走势独立于大盘, β分析参考价值有限"
+                )
+                break
+
+        # 4. 残差自相关: 只报告最严重窗口 (最高|ρ|)
+        worst_ac = (None, 0.0, 0.0)  # (window, |ac|, threshold)
+        for w in self.lookback_windows:
+            ac = _get(w, "resid_autocorr")
+            if ac is not None:
+                abs_ac = abs(ac)
+                threshold = 0.3 if w <= 60 else 0.2
+                if abs_ac > threshold and abs_ac > worst_ac[1]:
+                    worst_ac = (w, abs_ac, threshold)
+        if worst_ac[0] is not None:
+            w, ac_val, thresh = worst_ac
+            msg = (f"WARN: 残差自相关 (|ρ|={ac_val:.4f}, {w}d窗口, 阈值{thresh})"
+                   f" → 模型遗漏因子")
+            if w <= 60 and ac_val <= 0.5:
+                msg += " (短期窗口可能为正常动量效应)"
+            diagnosis.append(msg)
+
+        if not diagnosis:
+            diagnosis.append("OK: 未检测到明显异常")
+
+        return diagnosis
         def _w(days):
             return self.results.get(str(days))
 
